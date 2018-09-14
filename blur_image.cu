@@ -4,14 +4,10 @@
 
 // Includes
 #include <iostream>
-#include <cstdio>
-#include <cmath>
+#include <chrono>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-
-#include "common/common.h"
-#include <cuda_runtime.h>
 
 using namespace std;
 
@@ -67,11 +63,11 @@ void blur_image(const cv::Mat& input, cv::Mat& output)
 	unsigned char *d_input, *d_output;
 
 	// Allocate device memory
-	SAFE_CALL(cudaMalloc<unsigned char>(&d_input, bytes), "CUDA Malloc Failed");
-	SAFE_CALL(cudaMalloc<unsigned char>(&d_output, bytes), "CUDA Malloc Failed");
+	cudaMalloc<unsigned char>(&d_input, bytes);
+	cudaMalloc<unsigned char>(&d_output, bytes);
 
 	// Copy data from OpenCV input image to device memory
-	SAFE_CALL(cudaMemcpy(d_input, input.ptr(), bytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	cudaMemcpy(d_input, input.ptr(), bytes, cudaMemcpyHostToDevice);
 
 	// Specify a reasonable block size
 	const dim3 block(16, 16);
@@ -79,20 +75,30 @@ void blur_image(const cv::Mat& input, cv::Mat& output)
 	// Calculate grid size to cover the whole image
 	// const dim3 grid((input.cols + block.x - 1) / block.x, (input.rows + block.y - 1) / block.y);
 	const dim3 grid((int)ceil((float)input.cols / block.x), (int)ceil((float)input.rows/ block.y));
-	printf("blur_kernel<<<(%d, %d) , (%d, %d)>>>\n", grid.x, grid.y, block.x, block.y);
+	// printf("blur_kernel<<<(%d, %d) , (%d, %d)>>>\n", grid.x, grid.y, block.x, block.y);
 
-	// Launch the color conversion kernel
-	blur_kernel <<<grid, block >>>(d_input, d_output, input.cols, input.rows, static_cast<int>(input.step), static_cast<int>(output.step));
+	double total = 0;
+	//Call the wrapper function
+	for (int i = 0; i < 20; i++) {
+		auto start = std::chrono::high_resolution_clock::now();
+		blur_image(input, output);
+		blur_kernel <<<grid, block >>>(d_input, d_output, input.cols, input.rows, static_cast<int>(input.step), static_cast<int>(output.step));
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<float, std::milli> duration_ms = end - start;
+		total += duration_ms.count();
+	}
+
+	cout << "GPU Blur in " << total/20 << " ms." << endl;
 
 	// Synchronize to check for any kernel launch errors
-	SAFE_CALL(cudaDeviceSynchronize(), "Kernel Launch Failed");
+	cudaDeviceSynchronize();
 
 	// Copy back data from destination device meory to OpenCV output image
-	SAFE_CALL(cudaMemcpy(output.ptr(), d_output, bytes, cudaMemcpyDeviceToHost), "CUDA Memcpy Host To Device Failed");
+	cudaMemcpy(output.ptr(), d_output, bytes, cudaMemcpyDeviceToHost);
 
 	// Free the device memory
-	SAFE_CALL(cudaFree(d_input), "CUDA Free Failed");
-	SAFE_CALL(cudaFree(d_output), "CUDA Free Failed");
+	cudaFree(d_input);
+	cudaFree(d_output);
 }
 
 int main(int argc, char *argv[])

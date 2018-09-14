@@ -1,9 +1,10 @@
 // Arthur Alves Araujo Ferreira
 // A01022593
-// Compile with g++ -o blur blur_image_omp.cpp -fopenmp -lopencv_core -lopencv_highgui -lopencv_imgproc
+// Compile with g++ -o blur blur_image_omp.cpp -fopenmp -lopencv_core -lopencv_highgui -lopencv_imgproc -Wall -Ofast
 
 // Includes
 #include <iostream>
+#include <chrono>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -16,7 +17,7 @@ void blur_image(const cv::Mat& input, cv::Mat& output)
 	cout << "Input image step: " << input.step << " rows: " << input.rows << " cols: " << input.cols << endl;
 	int xIndex, yIndex;
 
-	// Iterate on x and y with openmp collapse threading 
+	// Iterate on x and y with openmp collapse threading
 	#pragma omp parallel for collapse(2) private(xIndex, yIndex) shared(input, output)
 	for (xIndex=0; xIndex<input.cols; xIndex++) {
 		for (yIndex=0; yIndex<input.rows; yIndex++) {
@@ -72,8 +73,17 @@ int main(int argc, char *argv[])
 	//Create output image
 	cv::Mat output(input.rows, input.cols, input.type());
 
+	double total = 0;
 	//Call the wrapper function
-	blur_image(input, output);
+	for (int i = 0; i < 20; i++) {
+		auto start = std::chrono::high_resolution_clock::now();
+		blur_image(input, output);
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<float, std::milli> duration_ms = end - start;
+		total += duration_ms.count();
+	}
+
+	cout << "CPU+OMP Blur in " << total/20 << " ms." << endl;
 
 	//Allow the windows to resize
 	namedWindow("Input", cv::WINDOW_NORMAL);

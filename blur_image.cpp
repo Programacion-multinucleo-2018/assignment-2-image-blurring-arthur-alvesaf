@@ -4,6 +4,7 @@
 
 // Includes
 #include <iostream>
+#include <chrono>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -34,7 +35,7 @@ void blur_image(const cv::Mat& input, cv::Mat& output)
 			for (int xOff = -2; xOff < 3; xOff++) {
 				for (int yOff = -2; yOff < 3; yOff++) {
 					shiftIdx = color_tid+(xOff*3)+(yOff*input.cols*3);
-					
+
 					resultantBlue += input.data[shiftIdx]*1/26.f;
 					resultantGreen += input.data[shiftIdx+1]*1/26.f;
 					resultantRed += input.data[shiftIdx+2]*1/26.f;
@@ -75,8 +76,16 @@ int main(int argc, char *argv[])
 	//Create output image
 	cv::Mat output(input.rows, input.cols, input.type());
 
+	double total = 0;
 	//Call the wrapper function
-	blur_image(input, output);
+	for (int i = 0; i < 20; i++) {
+		auto start = std::chrono::high_resolution_clock::now();
+		blur_image(input, output);
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<float, std::milli> duration_ms = end - start;
+		total += duration_ms.count();
+	}
+	cout << "CPU Blur in " << total/20 << " ms." << endl;
 
 	//Allow the windows to resize
 	namedWindow("Input", cv::WINDOW_NORMAL);
