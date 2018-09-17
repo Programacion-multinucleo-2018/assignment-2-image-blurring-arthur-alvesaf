@@ -79,16 +79,16 @@ void blur_image(const cv::Mat& input, cv::Mat& output)
 
 	double total = 0;
 	//Call the wrapper function
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < 1; i++) {
 		auto start = std::chrono::high_resolution_clock::now();
-		blur_image(input, output);
+		// blur_image(input, output);
 		blur_kernel <<<grid, block >>>(d_input, d_output, input.cols, input.rows, static_cast<int>(input.step), static_cast<int>(output.step));
 		auto end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<float, std::milli> duration_ms = end - start;
 		total += duration_ms.count();
 	}
 
-	cout << "GPU Blur in " << total/20 << " ms." << endl;
+	cout << "GPU Blur in " << total/1 << " ms." << endl;
 
 	// Synchronize to check for any kernel launch errors
 	cudaDeviceSynchronize();
